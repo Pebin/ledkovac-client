@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <android.widget.Toolbar
+        android:id="@+id/main_toolbar"
+        style="@style/HeaderBar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:elevation="4dp"
+
+        />
+
+    <org.opencv.android.JavaCameraView
+        android:id="@+id/camera_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@id/main_toolbar" />
+
+    <TextView
+        android:id="@+id/number_of_detected_flashes"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/main_toolbar"
+        android:ems="10"
+        android:textColor="@color/design_default_color_error"
+        android:textSize="20sp" />
+
+    <TextView
+        android:id="@+id/integreation_status"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/number_of_detected_flashes"
+        android:ems="10"
+        android:textColor="@color/design_default_color_error"
+        android:textSize="20sp" />
+
+
+</RelativeLayout>

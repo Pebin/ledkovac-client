@@ -1,0 +1,3 @@
+rootProject.name = "Ledkovac"
+include ':app'
+include ':openCVLibrary343'
