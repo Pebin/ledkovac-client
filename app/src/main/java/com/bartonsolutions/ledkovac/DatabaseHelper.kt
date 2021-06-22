@@ -39,14 +39,14 @@ class DatabaseHelper(var context: Context) : SQLiteOpenHelper(context, DATABASEN
     }
 
     fun getNotSynced(): MutableList<FlashRecord> {
-        var records: MutableList<FlashRecord> = ArrayList()
-        val query = "SELECT * FROM $TABLENAME"
+        val records: MutableList<FlashRecord> = ArrayList()
+        val query = "SELECT * FROM $TABLENAME WHERE NOT(SYNCED)"
         val result = this.readableDatabase.rawQuery(query, null)
         if (result.moveToFirst()) {
             do {
                 val record = FlashRecord(
                     result.getInt(result.getColumnIndex(COL_ID)),
-                    Constants.DATEFORMAT.parse(result.getString(result.getColumnIndex(COL_DATE))),
+                    DATEFORMAT.parse(result.getString(result.getColumnIndex(COL_DATE))),
                     result.getString(result.getColumnIndex(COL_SYNCED)).toBoolean()
                 )
                 records.add(record)

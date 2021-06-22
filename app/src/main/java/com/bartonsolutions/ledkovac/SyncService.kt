@@ -31,16 +31,17 @@ class SyncService : JobService(), SharedPreferences.OnSharedPreferenceChangeList
         val sharedPreferences: SharedPreferences =
             PreferenceManager.getDefaultSharedPreferences(this)
         sharedPreferences.registerOnSharedPreferenceChangeListener(this)
-        ipAddress = sharedPreferences.getString("ip_address", "")!!
+        ipAddress = sharedPreferences.getString("ip_address", "192.168.85.47")!!
     }
 
     override fun onStartJob(params: JobParameters?): Boolean {
         val dataToSync = databaseHelper.getNotSynced()
-        for (record in dataToSync) {
-            val sent = sendDate(record.date)
-            if (sent) {
-                databaseHelper.setSynced(record.id)
+        try {
+            for (record in dataToSync){
+                sendInThreadAndUpdate(record)
             }
+        } catch (ex: Exception) {
+            Log.e(TAG, "onStartJob: crash", ex)
         }
         return false
     }
@@ -49,11 +50,22 @@ class SyncService : JobService(), SharedPreferences.OnSharedPreferenceChangeList
         return true
     }
 
-    private fun sendDate(date: Date): Boolean {
-        val formattedDate: String = Constants.DATEFORMAT.format(date)
+    private fun sendInThreadAndUpdate(record: FlashRecord){
+        Thread {
+            val sent = sendRecord(record)
+            if (sent) {
+                databaseHelper.setSynced(record.id)
+            }
+        }.start()
+    }
+
+
+    private fun sendRecord(record: FlashRecord): Boolean {
+        val formattedDate: String = Constants.DATEFORMAT.format(record.date)
 
         val jsonData = """{
-            "data": "$formattedDate"
+            "id": "${record.id}",
+            "date": "$formattedDate"
         }""".trimIndent()
 
         val body = jsonData.toRequestBody(JSON)

@@ -14,12 +14,10 @@ import android.view.*
 import android.widget.TextView
 import android.widget.Toolbar
 import androidx.preference.PreferenceManager
-import com.bartonsolutions.ledkovac.Constants.DATEFORMAT
 import com.vmadalin.easypermissions.EasyPermissions
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
 import org.opencv.android.BaseLoaderCallback
 import org.opencv.android.CameraBridgeViewBase
 import org.opencv.android.CameraBridgeViewBase.CvCameraViewFrame
@@ -60,6 +58,7 @@ class MainActivity : Activity(), CvCameraViewListener2,
             when (status) {
                 SUCCESS -> {
                     Log.i(TAG, "OpenCV loaded successfully")
+                    mOpenCvCameraView!!.setCameraPermissionGranted();
                     mOpenCvCameraView!!.enableView()
                 }
                 else -> {
@@ -107,6 +106,9 @@ class MainActivity : Activity(), CvCameraViewListener2,
             PreferenceManager.getDefaultSharedPreferences(this)
         sharedPreferences.registerOnSharedPreferenceChangeListener(this)
         ipAddress = sharedPreferences.getString("ip_address", null)
+        if (!ipAddress.isNullOrEmpty()) {
+            testEndpoint()
+        }
 
         val jobScheduler = getSystemService(Context.JOB_SCHEDULER_SERVICE) as JobScheduler
         val jobInfo = JobInfo.Builder(11, ComponentName(this@MainActivity, SyncService::class.java))
@@ -166,7 +168,9 @@ class MainActivity : Activity(), CvCameraViewListener2,
 //            sendDate(Date())
 
             dataCount += 1
-            dataCounter?.text = dataCount.toString()
+            runOnUiThread {
+                dataCounter?.text = dataCount.toString()
+            }
             lastDetected = true
         }
 
@@ -201,6 +205,22 @@ class MainActivity : Activity(), CvCameraViewListener2,
 //        }
 //    }
 
+    private fun testEndpoint() {
+        val request = Request.Builder()
+            .url("http://$ipAddress:5050/")
+            .get()
+            .build()
+        try {
+            val response = client.newCall(request).execute()
+            response.close()
+            Log.d(TAG, response.body.toString())
+            setIntegrationStatus(true)
+        } catch (ex: Exception) {
+            Log.e(TAG, ex.toString())
+            setIntegrationStatus(false)
+        }
+    }
+
 
     override fun onRequestPermissionsResult(
         requestCode: Int,
@@ -213,6 +233,7 @@ class MainActivity : Activity(), CvCameraViewListener2,
 
     override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
         ipAddress = sharedPreferences!!.getString("ip_address", null)
+        testEndpoint()
     }
 
 
