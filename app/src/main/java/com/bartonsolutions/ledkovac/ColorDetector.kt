@@ -10,8 +10,8 @@ class ColorDetector {
     private val mUpperBound: Scalar = Scalar(180.0, 255.0, 255.0)
 
     fun process(imageSource: Mat): Boolean {
-        val p1 = Point(imageSource.width() / 10 * 4.0, imageSource.height() / 10 * 4.0)
-        val p2 = Point(imageSource.width() / 10 * 6.0, imageSource.height() / 10 * 6.0)
+        val p1 = Point(imageSource.width() / 10 * 4.9, imageSource.height() / 10 * 4.85)
+        val p2 = Point(imageSource.width() / 10 * 5.1, imageSource.height() / 10 * 5.15)
 
         val rectCrop = Rect(
             p1.x.toInt(), p1.y.toInt(), (p2.x - p1.x + 1).toInt(), (p2.y - p1.y +1).toInt()
@@ -40,7 +40,7 @@ class ColorDetector {
             if (area > maxArea) maxArea = area
         }
 
-//        Imgproc.drawContours(imageSource, contours, -1, Scalar(255.0, 0.0, 0.0, 255.0))
+        Imgproc.drawContours(imageSource, contours, -1, Scalar(255.0, 0.0, 0.0, 255.0))
 
         Log.d("ColorDetector", "Area: $maxArea")
         return maxArea > 0

@@ -73,6 +73,7 @@ class DatabaseHelper(var context: Context) : SQLiteOpenHelper(context, DATABASEN
         if (cursor.moveToFirst()) {
             result = cursor.getInt(0)
         }
+        cursor.close()
         return result
     }
 }
