@@ -40,7 +40,7 @@ class ColorDetector {
             if (area > maxArea) maxArea = area
         }
 
-        Imgproc.drawContours(imageSource, contours, -1, Scalar(255.0, 0.0, 0.0, 255.0))
+//        Imgproc.drawContours(imageSource, contours, -1, Scalar(255.0, 0.0, 0.0, 255.0))
 
         Log.d("ColorDetector", "Area: $maxArea")
         return maxArea > 0

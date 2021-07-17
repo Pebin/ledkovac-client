@@ -206,19 +206,22 @@ class MainActivity : Activity(), CvCameraViewListener2,
 //    }
 
     private fun testEndpoint() {
-        val request = Request.Builder()
-            .url("http://$ipAddress:5050/")
-            .get()
-            .build()
-        try {
-            val response = client.newCall(request).execute()
-            response.close()
-            Log.d(TAG, response.body.toString())
-            setIntegrationStatus(true)
-        } catch (ex: Exception) {
-            Log.e(TAG, ex.toString())
-            setIntegrationStatus(false)
-        }
+        Thread {
+            val request = Request.Builder()
+                .url("http://$ipAddress:5050/")
+                .get()
+                .build()
+            try {
+                val response = client.newCall(request).execute()
+                response.close()
+                Log.d(TAG, response.body.toString())
+                setIntegrationStatus(true)
+            } catch (ex: Exception) {
+                Log.e(TAG, ex.toString())
+                setIntegrationStatus(false)
+            }
+        }.start()
+
     }
 
 

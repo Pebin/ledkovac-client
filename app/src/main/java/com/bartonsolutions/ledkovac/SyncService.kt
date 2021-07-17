@@ -27,7 +27,6 @@ class SyncService : JobService(), SharedPreferences.OnSharedPreferenceChangeList
         super.onCreate()
         databaseHelper = DatabaseHelper(this)
 
-
         val sharedPreferences: SharedPreferences =
             PreferenceManager.getDefaultSharedPreferences(this)
         sharedPreferences.registerOnSharedPreferenceChangeListener(this)
