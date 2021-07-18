@@ -37,6 +37,7 @@ class MainActivity : Activity(), CvCameraViewListener2,
     private var dataCounter: TextView? = null
     private var toolBar: Toolbar? = null
     private var integrationStatus: TextView? = null
+    private var fpsCount: TextView? = null
 
     private var dataCount: Int = 0
 
@@ -48,6 +49,7 @@ class MainActivity : Activity(), CvCameraViewListener2,
     private var ipAddress: String? = null
 
     private var sendingThread: SyncThread? = null
+    val lastFrames: Queue<Long> = LinkedList()
 
 
     private val mLoaderCallback: BaseLoaderCallback = object : BaseLoaderCallback(this) {
@@ -98,6 +100,7 @@ class MainActivity : Activity(), CvCameraViewListener2,
 
         dataCounter = findViewById<View>(R.id.number_of_detected_flashes) as TextView
         integrationStatus = findViewById<View>(R.id.integreation_status) as TextView
+        fpsCount = findViewById<View>(R.id.fps_count) as TextView
 
         val sharedPreferences: SharedPreferences =
             PreferenceManager.getDefaultSharedPreferences(this)
@@ -152,6 +155,18 @@ class MainActivity : Activity(), CvCameraViewListener2,
         mRgba!!.release()
     }
 
+    fun update_fps() {
+        val newTime = System.currentTimeMillis()
+        if (lastFrames.size < 5) {
+            lastFrames.add(newTime)
+            return
+        }
+        val lastFrameTime = lastFrames.remove()
+        val delta = newTime - lastFrameTime
+        val fps = String.format("%.1f", 5 / (delta.toDouble() / 1000))
+        fpsCount?.text = "FPS: $fps"
+    }
+
     override fun onCameraFrame(inputFrame: CvCameraViewFrame): Mat {
         val mRgba = inputFrame.rgba()
         val detected = mDetector!!.process(mRgba)
@@ -169,6 +184,8 @@ class MainActivity : Activity(), CvCameraViewListener2,
         if (!detected && lastDetected) {
             lastDetected = false
         }
+
+        update_fps()
 
         return mRgba
     }
