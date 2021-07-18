@@ -2,10 +2,6 @@ package com.bartonsolutions.ledkovac
 
 import android.Manifest.permission.CAMERA
 import android.app.Activity
-import android.app.job.JobInfo
-import android.app.job.JobScheduler
-import android.content.ComponentName
-import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Bundle
@@ -14,8 +10,8 @@ import android.view.*
 import android.widget.TextView
 import android.widget.Toolbar
 import androidx.preference.PreferenceManager
+import com.bartonsolutions.ledkovac.Constants.SERVER_PORT
 import com.vmadalin.easypermissions.EasyPermissions
-import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.opencv.android.BaseLoaderCallback
@@ -48,9 +44,10 @@ class MainActivity : Activity(), CvCameraViewListener2,
 
     private var lastDetected = false
     private val client: OkHttpClient = OkHttpClient()
-    private val JSON = "application/json; charset=utf-8".toMediaType()
 
     private var ipAddress: String? = null
+
+    private var sendingThread: SyncThread? = null
 
 
     private val mLoaderCallback: BaseLoaderCallback = object : BaseLoaderCallback(this) {
@@ -110,12 +107,8 @@ class MainActivity : Activity(), CvCameraViewListener2,
             testEndpoint()
         }
 
-        val jobScheduler = getSystemService(Context.JOB_SCHEDULER_SERVICE) as JobScheduler
-        val jobInfo = JobInfo.Builder(11, ComponentName(this@MainActivity, SyncService::class.java))
-            .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
-            .setPeriodic(5000)
-            .build()
-        jobScheduler.schedule(jobInfo)
+        sendingThread = SyncThread(this)
+        sendingThread!!.start()
     }
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
@@ -165,7 +158,6 @@ class MainActivity : Activity(), CvCameraViewListener2,
 
         if (detected && !lastDetected) {
             database?.insertFlash(Date())
-//            sendDate(Date())
 
             dataCount += 1
             runOnUiThread {
@@ -181,34 +173,10 @@ class MainActivity : Activity(), CvCameraViewListener2,
         return mRgba
     }
 
-
-//    private fun sendDate(date: Date) {
-//        val formattedDate: String = DATEFORMAT.format(date)
-//
-//        val jsonData = """{
-//            "data": "$formattedDate"
-//        }""".trimIndent()
-//
-//        val body = jsonData.toRequestBody(JSON)
-//        val request = Request.Builder()
-//            .url("http://$ipAddress:5050/new-data")  // 10.0.2.2 in emulator
-//            .post(body)
-//            .build()
-//        try {
-//            val response = client.newCall(request).execute()
-//            response.close()
-//            Log.d(TAG, response.body.toString())
-//            setIntegrationStatus(true)
-//        } catch (ex: Exception) {
-//            Log.e(TAG, ex.toString())
-//            setIntegrationStatus(false)
-//        }
-//    }
-
     private fun testEndpoint() {
         Thread {
             val request = Request.Builder()
-                .url("http://$ipAddress:5050/")
+                .url("http://$ipAddress:$SERVER_PORT/")
                 .get()
                 .build()
             try {
@@ -223,7 +191,6 @@ class MainActivity : Activity(), CvCameraViewListener2,
         }.start()
 
     }
-
 
     override fun onRequestPermissionsResult(
         requestCode: Int,

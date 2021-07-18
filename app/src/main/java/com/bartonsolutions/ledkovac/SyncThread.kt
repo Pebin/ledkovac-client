@@ -1,61 +1,54 @@
 package com.bartonsolutions.ledkovac
 
-import android.app.job.JobParameters
-import android.app.job.JobService
+import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
 import androidx.preference.PreferenceManager
+import com.bartonsolutions.ledkovac.Constants.SERVER_PORT
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import java.util.*
 
 
 private const val TAG = "SyncService"
 
-class SyncService : JobService(), SharedPreferences.OnSharedPreferenceChangeListener {
+class SyncThread(context: Context) : Thread(), SharedPreferences.OnSharedPreferenceChangeListener {
 
-    private lateinit var databaseHelper: DatabaseHelper
-    private lateinit var ipAddress: String
+    private var databaseHelper: DatabaseHelper = DatabaseHelper(context)
+    private var ipAddress: String
 
     private val client: OkHttpClient = OkHttpClient()
     private val JSON = "application/json; charset=utf-8".toMediaType()
 
-
-    override fun onCreate() {
-        super.onCreate()
-        databaseHelper = DatabaseHelper(this)
-
+    init {
         val sharedPreferences: SharedPreferences =
-            PreferenceManager.getDefaultSharedPreferences(this)
+            PreferenceManager.getDefaultSharedPreferences(context)
         sharedPreferences.registerOnSharedPreferenceChangeListener(this)
         ipAddress = sharedPreferences.getString("ip_address", "192.168.85.47")!!
     }
 
-    override fun onStartJob(params: JobParameters?): Boolean {
+    override fun run() {
+        while (true) {
+            sendNotSyncedData()
+            sleep(5000)
+        }
+    }
+
+    private fun sendNotSyncedData() {
         val dataToSync = databaseHelper.getNotSynced()
         try {
-            for (record in dataToSync){
-                sendInThreadAndUpdate(record)
+            for (record in dataToSync) {
+                val sent = sendRecord(record)
+                if (sent) {
+                    databaseHelper.setSynced(record.id)
+                } else {
+                    break
+                }
             }
         } catch (ex: Exception) {
             Log.e(TAG, "onStartJob: crash", ex)
         }
-        return false
-    }
-
-    override fun onStopJob(params: JobParameters?): Boolean {
-        return true
-    }
-
-    private fun sendInThreadAndUpdate(record: FlashRecord){
-        Thread {
-            val sent = sendRecord(record)
-            if (sent) {
-                databaseHelper.setSynced(record.id)
-            }
-        }.start()
     }
 
 
@@ -69,7 +62,7 @@ class SyncService : JobService(), SharedPreferences.OnSharedPreferenceChangeList
 
         val body = jsonData.toRequestBody(JSON)
         val request = Request.Builder()
-            .url("http://$ipAddress:5050/new-data")  // 10.0.2.2 in emulator
+            .url("http://$ipAddress:$SERVER_PORT/new-data")  // 10.0.2.2 in emulator
             .post(body)
             .build()
         return try {

@@ -8,4 +8,5 @@ object Constants {
     val DATEFORMAT: DateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss").also {
         it.timeZone = TimeZone.getTimeZone("UTC")
     }
+    val SERVER_PORT: Int = 5600
 }
