@@ -1,6 +1,5 @@
 package com.bartonsolutions.ledkovac
 
-import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
 import androidx.preference.PreferenceManager
@@ -13,9 +12,10 @@ import okhttp3.RequestBody.Companion.toRequestBody
 
 private const val TAG = "SyncService"
 
-class SyncThread(context: Context) : Thread(), SharedPreferences.OnSharedPreferenceChangeListener {
+class SyncThread(private var activity: MainActivity) : Thread(),
+    SharedPreferences.OnSharedPreferenceChangeListener {
 
-    private var databaseHelper: DatabaseHelper = DatabaseHelper(context)
+    private var databaseHelper: DatabaseHelper = DatabaseHelper(activity)
     private var ipAddress: String
 
     private val client: OkHttpClient = OkHttpClient()
@@ -23,7 +23,7 @@ class SyncThread(context: Context) : Thread(), SharedPreferences.OnSharedPrefere
 
     init {
         val sharedPreferences: SharedPreferences =
-            PreferenceManager.getDefaultSharedPreferences(context)
+            PreferenceManager.getDefaultSharedPreferences(activity)
         sharedPreferences.registerOnSharedPreferenceChangeListener(this)
         ipAddress = sharedPreferences.getString("ip_address", "192.168.85.47")!!
     }
@@ -38,14 +38,17 @@ class SyncThread(context: Context) : Thread(), SharedPreferences.OnSharedPrefere
     private fun sendNotSyncedData() {
         val dataToSync = databaseHelper.getNotSynced()
         try {
+            var synced = true
             for (record in dataToSync) {
                 val sent = sendRecord(record)
                 if (sent) {
                     databaseHelper.setSynced(record.id)
                 } else {
+                    synced = false
                     break
                 }
             }
+            activity.setIntegrationStatus(synced)
         } catch (ex: Exception) {
             Log.e(TAG, "onStartJob: crash", ex)
         }

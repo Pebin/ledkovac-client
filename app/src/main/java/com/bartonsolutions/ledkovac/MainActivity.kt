@@ -207,7 +207,7 @@ class MainActivity : Activity(), CvCameraViewListener2,
     }
 
 
-    private fun setIntegrationStatus(working: Boolean) {
+    fun setIntegrationStatus(working: Boolean) {
         integrationStatus?.text = "$ipAddress - ${if (working) "✔" else "❌"}"
     }
 }
