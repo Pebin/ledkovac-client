@@ -1,41 +1,37 @@
 package com.bartonsolutions.ledkovac
 
 import android.Manifest.permission.CAMERA
-import android.app.Activity
 import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Bundle
 import android.util.Log
 import android.view.*
 import android.widget.TextView
-import android.widget.Toolbar
+import androidx.appcompat.app.AppCompatActivity
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.core.content.ContextCompat
 import androidx.preference.PreferenceManager
 import com.bartonsolutions.ledkovac.Constants.SERVER_PORT
 import com.vmadalin.easypermissions.EasyPermissions
+import kotlinx.android.synthetic.main.activity_main.*
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import org.opencv.android.BaseLoaderCallback
-import org.opencv.android.CameraBridgeViewBase
-import org.opencv.android.CameraBridgeViewBase.CvCameraViewFrame
-import org.opencv.android.CameraBridgeViewBase.CvCameraViewListener2
-import org.opencv.android.LoaderCallbackInterface
-import org.opencv.android.OpenCVLoader
-import org.opencv.core.CvType
-import org.opencv.core.Mat
 import java.util.*
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 
+typealias RedColorListener = (isRed: Boolean) -> Unit
 
 private const val REQUEST_CODE_CAMERA_PERMISSION = 123
 private const val TAG = "MainActivity"
 
-class MainActivity : Activity(), CvCameraViewListener2,
+class MainActivity : AppCompatActivity(),
     SharedPreferences.OnSharedPreferenceChangeListener {
-    private var mRgba: Mat? = null
 
-    private var mDetector: ColorDetector? = null
-    private var mOpenCvCameraView: CameraBridgeViewBase? = null
     private var dataCounter: TextView? = null
-    private var toolBar: Toolbar? = null
     private var integrationStatus: TextView? = null
     private var fpsCount: TextView? = null
 
@@ -50,26 +46,7 @@ class MainActivity : Activity(), CvCameraViewListener2,
 
     private var sendingThread: SyncThread? = null
     val lastFrames: Queue<Long> = LinkedList()
-
-
-    private val mLoaderCallback: BaseLoaderCallback = object : BaseLoaderCallback(this) {
-        override fun onManagerConnected(status: Int) {
-            when (status) {
-                SUCCESS -> {
-                    Log.i(TAG, "OpenCV loaded successfully")
-                    mOpenCvCameraView!!.setCameraPermissionGranted();
-                    mOpenCvCameraView!!.enableView()
-                }
-                else -> {
-                    super.onManagerConnected(status)
-                }
-            }
-        }
-    }
-
-    init {
-        Log.i(TAG, "Instantiated new ${this.javaClass}")
-    }
+    private lateinit var cameraExecutor: ExecutorService
 
 
     public override fun onCreate(savedInstanceState: Bundle?) {
@@ -85,21 +62,18 @@ class MainActivity : Activity(), CvCameraViewListener2,
             )
         }
 
+        startCamera()
+
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         setContentView(R.layout.activity_main)
 
-        toolBar = findViewById(R.id.main_toolbar)
-        setActionBar(toolBar)
+        cameraExecutor = Executors.newSingleThreadExecutor()
 
         database = DatabaseHelper(this)
         dataCount = database!!.getFlashesCount()
 
-        mOpenCvCameraView = findViewById<View>(R.id.camera_view) as CameraBridgeViewBase
-        mOpenCvCameraView!!.visibility = SurfaceView.VISIBLE
-        mOpenCvCameraView!!.setCvCameraViewListener(this)
-
         dataCounter = findViewById<View>(R.id.number_of_detected_flashes) as TextView
-        integrationStatus = findViewById<View>(R.id.integreation_status) as TextView
+        integrationStatus = findViewById<View>(R.id.integration_status) as TextView
         fpsCount = findViewById<View>(R.id.fps_count) as TextView
 
         val sharedPreferences: SharedPreferences =
@@ -112,6 +86,69 @@ class MainActivity : Activity(), CvCameraViewListener2,
 
         sendingThread = SyncThread(this)
         sendingThread!!.start()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        cameraExecutor.shutdown()
+    }
+
+    private fun startCamera() {
+        val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
+
+        cameraProviderFuture.addListener(Runnable {
+            // Used to bind the lifecycle of cameras to the lifecycle owner
+            val cameraProvider: ProcessCameraProvider = cameraProviderFuture.get()
+
+            // Preview
+            val preview = Preview.Builder()
+                .build()
+                .also {
+                    it.setSurfaceProvider(camera_view.surfaceProvider)
+                }
+
+            val imageAnalyzer = ImageAnalysis.Builder()
+                .build()
+                .also {
+                    it.setAnalyzer(cameraExecutor, RedColorAnalyzer { isRed ->
+
+                        if (isRed && !lastDetected) {
+                            database?.insertFlash(Date())
+
+                            dataCount += 1
+                            runOnUiThread {
+                                dataCounter?.text = dataCount.toString()
+                            }
+                            lastDetected = true
+                        }
+
+                        if (!isRed && lastDetected) {
+                            lastDetected = false
+                        }
+
+                        update_fps()
+                    })
+                }
+
+
+            // Select back camera as a default
+            val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+
+            try {
+                // Unbind use cases before rebinding
+                cameraProvider.unbindAll()
+
+                // Bind use cases to camera
+                cameraProvider.bindToLifecycle(
+                    this, cameraSelector, preview, imageAnalyzer
+                )
+
+
+            } catch (exc: Exception) {
+                Log.e(TAG, "Use case binding failed", exc)
+            }
+
+        }, ContextCompat.getMainExecutor(this))
     }
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
@@ -127,33 +164,6 @@ class MainActivity : Activity(), CvCameraViewListener2,
         return super.onOptionsItemSelected(item)
     }
 
-    public override fun onPause() {
-        super.onPause()
-        mOpenCvCameraView?.disableView()
-    }
-
-    public override fun onResume() {
-        super.onResume()
-        if (OpenCVLoader.initDebug()) {
-            mLoaderCallback.onManagerConnected(LoaderCallbackInterface.SUCCESS)
-        } else {
-            OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION, this, mLoaderCallback)
-        }
-    }
-
-    public override fun onDestroy() {
-        super.onDestroy()
-        mOpenCvCameraView?.disableView()
-    }
-
-    override fun onCameraViewStarted(width: Int, height: Int) {
-        mRgba = Mat(height, width, CvType.CV_8UC4)
-        mDetector = ColorDetector()
-    }
-
-    override fun onCameraViewStopped() {
-        mRgba!!.release()
-    }
 
     fun update_fps() {
         val newTime = System.currentTimeMillis()
@@ -167,36 +177,13 @@ class MainActivity : Activity(), CvCameraViewListener2,
         fpsCount?.text = "FPS: $fps"
     }
 
-    override fun onCameraFrame(inputFrame: CvCameraViewFrame): Mat {
-        val mRgba = inputFrame.rgba()
-        val detected = mDetector!!.process(mRgba)
-
-        if (detected && !lastDetected) {
-            database?.insertFlash(Date())
-
-            dataCount += 1
-            runOnUiThread {
-                dataCounter?.text = dataCount.toString()
-            }
-            lastDetected = true
-        }
-
-        if (!detected && lastDetected) {
-            lastDetected = false
-        }
-
-        update_fps()
-
-        return mRgba
-    }
-
     private fun testEndpoint() {
         Thread {
-            val request = Request.Builder()
-                .url("http://$ipAddress:$SERVER_PORT/")
-                .get()
-                .build()
             try {
+                val request = Request.Builder()
+                    .url("http://$ipAddress:$SERVER_PORT/")
+                    .get()
+                    .build()
                 val response = client.newCall(request).execute()
                 response.close()
                 Log.d(TAG, response.body.toString())
