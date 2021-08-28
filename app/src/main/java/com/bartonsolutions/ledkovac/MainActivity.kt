@@ -5,7 +5,10 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Bundle
 import android.util.Log
-import android.view.*
+import android.view.Menu
+import android.view.MenuItem
+import android.view.View
+import android.view.WindowManager
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.CameraSelector
@@ -24,6 +27,7 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 typealias RedColorListener = (isRed: Boolean) -> Unit
+typealias ColorListener = (hsv: FloatArray) -> Unit
 
 private const val REQUEST_CODE_CAMERA_PERMISSION = 123
 private const val TAG = "MainActivity"
@@ -34,6 +38,7 @@ class MainActivity : AppCompatActivity(),
     private var dataCounter: TextView? = null
     private var integrationStatus: TextView? = null
     private var fpsCount: TextView? = null
+    private var hsvText: TextView? = null
 
     private var dataCount: Int = 0
 
@@ -75,6 +80,7 @@ class MainActivity : AppCompatActivity(),
         dataCounter = findViewById<View>(R.id.number_of_detected_flashes) as TextView
         integrationStatus = findViewById<View>(R.id.integration_status) as TextView
         fpsCount = findViewById<View>(R.id.fps_count) as TextView
+        hsvText = findViewById<View>(R.id.hsv_text) as TextView
 
         val sharedPreferences: SharedPreferences =
             PreferenceManager.getDefaultSharedPreferences(this)
@@ -96,7 +102,7 @@ class MainActivity : AppCompatActivity(),
     private fun startCamera() {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
 
-        cameraProviderFuture.addListener(Runnable {
+        cameraProviderFuture.addListener({
             // Used to bind the lifecycle of cameras to the lifecycle owner
             val cameraProvider: ProcessCameraProvider = cameraProviderFuture.get()
 
@@ -110,15 +116,13 @@ class MainActivity : AppCompatActivity(),
             val imageAnalyzer = ImageAnalysis.Builder()
                 .build()
                 .also {
-                    it.setAnalyzer(cameraExecutor, RedColorAnalyzer { isRed ->
+                    it.setAnalyzer(cameraExecutor, RedColorAnalyzer({ isRed ->
 
                         if (isRed && !lastDetected) {
                             database?.insertFlash(Date())
 
                             dataCount += 1
-                            runOnUiThread {
-                                dataCounter?.text = dataCount.toString()
-                            }
+                            dataCounter?.text = dataCount.toString()
                             lastDetected = true
                         }
 
@@ -127,7 +131,10 @@ class MainActivity : AppCompatActivity(),
                         }
 
                         update_fps()
-                    })
+                    }, { hsv ->
+                        hsvText?.text =
+                            String.format("%.2f --- %.2f --- %.2f", hsv[0], hsv[1], hsv[2])
+                    }))
                 }
 
 

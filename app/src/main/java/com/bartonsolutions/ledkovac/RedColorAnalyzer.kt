@@ -5,10 +5,12 @@ import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import java.nio.ByteBuffer
 
-class RedColorAnalyzer(private val listenerRed: RedColorListener) : ImageAnalysis.Analyzer {
+class RedColorAnalyzer(private val listenerRed: RedColorListener, private val hsvListener: ColorListener) : ImageAnalysis.Analyzer {
     // Lower and Upper bounds for range checking in HSV color space
-    private val mLowerBound: FloatArray = floatArrayOf(320.0F, 0.196F, 0.196F)
+    private val mLowerBound: FloatArray = floatArrayOf(260.0F, 0.1F, 0.1F)
     private val mUpperBound: FloatArray = floatArrayOf(360.0F, 1.0F, 1.0F)
+    private val mLowerBound2: FloatArray = floatArrayOf(0.0F, 0.1F, 0.1F)
+    private val mUpperBound2: FloatArray = floatArrayOf(20.0F, 1.0F, 1.0F)
 
     private fun ByteBuffer.toByteArray(): ByteArray {
         rewind()    // Rewind the buffer to zero
@@ -59,14 +61,18 @@ class RedColorAnalyzer(private val listenerRed: RedColorListener) : ImageAnalysi
     }
 
     private fun inRedRange(hsv: FloatArray): Boolean {
-        return (hsv[0] >= mLowerBound[0] && hsv[0] <= mUpperBound[0]) &&
+        return ((hsv[0] >= mLowerBound[0] && hsv[0] <= mUpperBound[0]) &&
                 (hsv[1] >= mLowerBound[1] && hsv[1] <= mUpperBound[1]) &&
-                (hsv[2] >= mLowerBound[2] && hsv[2] <= mUpperBound[2])
+                (hsv[2] >= mLowerBound[2] && hsv[2] <= mUpperBound[2])) ||
+                ((hsv[0] >= mLowerBound2[0] && hsv[0] <= mUpperBound2[0]) &&
+                (hsv[1] >= mLowerBound2[1] && hsv[1] <= mUpperBound2[1]) &&
+                (hsv[2] >= mLowerBound2[2] && hsv[2] <= mUpperBound2[2]))
     }
 
     override fun analyze(image: ImageProxy) {
         val hsv = getHSVfromYUV(image)
         listenerRed(inRedRange(hsv))
+        hsvListener(hsv)
         image.close()
     }
 }
