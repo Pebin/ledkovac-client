@@ -122,7 +122,10 @@ class MainActivity : AppCompatActivity(),
                             database?.insertFlash(Date())
 
                             dataCount += 1
-                            dataCounter?.text = dataCount.toString()
+                            runOnUiThread{
+                                dataCounter?.text = dataCount.toString()
+                            }
+
                             lastDetected = true
                         }
 
@@ -132,8 +135,10 @@ class MainActivity : AppCompatActivity(),
 
                         update_fps()
                     }, { hsv ->
-                        hsvText?.text =
-                            String.format("%.2f --- %.2f --- %.2f", hsv[0], hsv[1], hsv[2])
+                        runOnUiThread {
+                            hsvText?.text =
+                                String.format("%.2f --- %.2f --- %.2f", hsv[0], hsv[1], hsv[2])
+                        }
                     }))
                 }
 
@@ -181,7 +186,9 @@ class MainActivity : AppCompatActivity(),
         val lastFrameTime = lastFrames.remove()
         val delta = newTime - lastFrameTime
         val fps = String.format("%.1f", 5 / (delta.toDouble() / 1000))
-        fpsCount?.text = "FPS: $fps"
+        runOnUiThread{
+            fpsCount?.text = "FPS: $fps"
+        }
     }
 
     private fun testEndpoint() {
@@ -219,6 +226,8 @@ class MainActivity : AppCompatActivity(),
 
 
     fun setIntegrationStatus(working: Boolean) {
-        integrationStatus?.text = "$ipAddress - ${if (working) "✔" else "❌"}"
+        runOnUiThread{
+            integrationStatus?.text = "$ipAddress - ${if (working) "✔" else "❌"}"
+        }
     }
 }
